@@ -11,7 +11,7 @@ origins_weights = {
     "Empire":      [0.8, 0.08, 0.02, 0.1],
     "Bakufu":      [0.05, 0.89, 0.01, 0.05],
     "Babaan":      [0.0, 0.0, 1.0, 0.0],
-    "Azure Coast": [0.15, 0.04, 0.01, 0.8],
+    "Azure Coast": [0.2, 0.04, 0.01, 0.75],
 }
 # Probabilities of species for each area (i.e. if you have a person in area X how likely is it that their species is Y)
 # Presently, this is fairly minimal (there should be a non-zero probability for each species in all areas)
