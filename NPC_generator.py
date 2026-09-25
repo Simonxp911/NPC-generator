@@ -1,11 +1,11 @@
 
 import os
+import argparse
 import numpy as np 
-import itertools
 
 areas_list = ["Empire", "Bakufu", "Babaan", "Azure Coast"]
 species_list = ["Dark Elf", "Desert Elf", "Dragonborn", "Dwarf", "Gnome", "Goblin", "Goliath", "Halfling", "High Elf", "Human", "Orc", "Tiefling", "Tortle", "Wood Elf"]
-genders_list = ["m (he/him)", "f (she/her)", "nb (they/them)"]
+pronouns_list = ["he/him", "she/her", "they/them"]
 # Probabilities of origin for each area (i.e. if you have a person in area X how likely is it that their origin is Y)
 origins_weights = {
     "Empire":      [0.8, 0.08, 0.02, 0.1],
@@ -22,32 +22,32 @@ species_weights = {
     "Babaan":      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     "Azure Coast": [0, 0, 1, 0, 2, 2, 0, 0, 0, 0, 0, 2, 1, 0],
 }
-# Probabilities for the genders/pronouns
-genders_weights = [0.45, 0.45, 0.1]
+# Probabilities for the pronouns
+pronouns_weights = [0.45, 0.45, 0.1]
 # The probability for an NPC to be Assimar
 assimar_probability = 0.01
 
 
 # Main function for the generation of an NPC
-def generate_NPC(current_area, input_origin=None, input_species=None, input_gender=None, input_name=None):
+def generate_NPC(current_area, input_origin=None, input_species=None, input_pronouns=None, input_name=None):
     # Check that arguments conform to expectations 
     if current_area not in areas_list: raise Exception("Given current_area is invalid")
     if input_origin is not None and input_origin not in areas_list: raise Exception("Given origin is invalid")
     if input_species is not None and input_species not in species_list: raise Exception("Given species is invalid")
-    if input_gender is not None and input_gender not in genders_list: raise Exception("Given gender is invalid")
+    if input_pronouns is not None and input_pronouns not in pronouns_list: raise Exception("Given pronouns are invalid")
     
     # Generate properties of NPC (use while loop to facilitate repeated generation until satisfactory)
     while True:
-        origin  = generate_origin(current_area)          if input_origin  is None else input_origin
-        species = generate_species(origin)               if input_species is None else input_species
-        gender  = generate_gender(species)               if input_gender  is None else input_gender
-        name    = generate_name(origin, species, gender) if input_name    is None else input_name
+        origin   = generate_origin(current_area)            if input_origin  is None else input_origin
+        species  = generate_species(origin)                 if input_species is None else input_species
+        pronouns = generate_pronouns(species)               if input_pronouns  is None else input_pronouns
+        name     = generate_name(origin, species, pronouns) if input_name    is None else input_name
         
         # Print the result
         print(f"{"Current area: ":<25}" + current_area)
         print(f"{"NPC origin: ":<25}" + origin)
         print(f"{"NPC species: ":<25}" + species)
-        print(f"{"NPC gender (pronouns): ":<25}" + gender)
+        print(f"{"NPC pronouns: ":<25}" + pronouns)
         print(f"{"NPC name: ":<25}" + name)
         
         # Ask whether the generated NPC is accepted
@@ -64,7 +64,7 @@ def generate_NPC(current_area, input_origin=None, input_species=None, input_gend
 
         # Depending on whether the NPC is accepted mark the name as used or re-generate
         if inpt in input_yes:
-            mark_name_as_used(origin, species, gender, name)
+            mark_name_as_used(origin, species, pronouns, name)
             break
         elif inpt in input_no:
             continue
@@ -72,7 +72,7 @@ def generate_NPC(current_area, input_origin=None, input_species=None, input_gend
             return
 
 
-# Functions for generating the origin, species, gender, and name of an NPC
+# Functions for generating the origin, species, pronouns, and name of an NPC
 def generate_origin(current_area):
     return np.random.choice(areas_list, 1, p=origins_weights[current_area]/np.sum(origins_weights[current_area]))[0]
 
@@ -83,17 +83,17 @@ def generate_species(origin):
     return np.random.choice(species_list, 1, p=species_weights[origin]/np.sum(species_weights[origin]))[0] + assimar_or_blank
 
 
-def generate_gender(species):
+def generate_pronouns(species):
     # Tortles always use they/them
     if species == "Tortle":
-        return genders_list[2]
+        return pronouns_list[2]
     else:
-        return np.random.choice(genders_list, 1, p=genders_weights)[0]
+        return np.random.choice(pronouns_list, 1, p=pronouns_weights/np.sum(pronouns_weights))[0]
 
 
-def generate_name(origin, species, gender):
+def generate_name(origin, species, pronouns):
     # Read list of names
-    filename = names_list_filename(origin, species, gender)
+    filename = names_list_filename(origin, species, pronouns)
     with open(filename, 'r') as file:
             names_list = file.readlines()
     
@@ -108,26 +108,26 @@ def generate_name(origin, species, gender):
     else:
         # Add an imperial surname if the NPC has origin = Empire
         imperialSurname_or_blank = " " + generate_Imperial_surname() if origin == "Empire" else ""
-        # Return name (remove the newline from the name)
-        return np.random.choice(names_list, 1, p=np.ones(len(names_list))/len(names_list))[0][:-1] + imperialSurname_or_blank
+        # Return name (removing the newline from the end of the name)
+        return np.random.choice(names_list, 1, p=np.ones(len(names_list))/len(names_list))[0][:-1] + imperialSurname_or_blank[:-1]
 
 
 # Function to put together the appropriate filename to load possible names
-def names_list_filename(origin, species, gender):
+def names_list_filename(origin, species, pronouns):
     # Check successively less specific names lists
-    possible_filenames = ["names_lists/" + "_".join([origin, species, gender, "names.txt"]),
+    possible_filenames = ["names_lists/" + "_".join([origin, species, pronouns, "names.txt"]),
                           "names_lists/" + "_".join([origin, species, "names.txt"]),
                           "names_lists/" + "_".join([origin, "names.txt"])]
     for filename in possible_filenames:
         if os.path.isfile(filename):
             return filename
     # If none of those exist raise an exception
-    raise Exception(f"Could not find an approriate list of names for origin: {origin}, species: {species}, gender: {gender}")
+    raise Exception(f"Could not find an approriate list of names for origin: {origin}, species: {species}, pronouns: {pronouns}")
 
 
 # Function to indicate that a name has already been used (and should not be used again)
-def mark_name_as_used(origin, species, gender, name):
-    filename = names_list_filename(origin, species, gender)
+def mark_name_as_used(origin, species, pronouns, name):
+    filename = names_list_filename(origin, species, pronouns)
     with open(filename, 'r') as file:
         names_list = file.readlines()
     index_of_name = names_list.index(name)
@@ -144,13 +144,25 @@ def generate_Imperial_surname():
 
 
 
-# generate_NPC(origin, species, gender, name)
-# gather_Empire_names_list()
-# generate_Imperial_surname()
+#### Run the NPC generator with the arguments given from the terminal ####
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("current_area")
+    parser.add_argument("-o", "--origin")
+    parser.add_argument("-s", "--species")
+    parser.add_argument("-p", "--pronouns")
+    parser.add_argument("-n", "--name")
+    args = parser.parse_args()
+
+    generate_NPC(args.current_area, input_origin=args.origin, input_species=args.species, input_pronouns=args.pronouns, input_name=args.name)
+
+
+
 
 
 
 # TODO:
 # Improve name lists?
 #   -Dragonborn should be Germanic instead?
-# Do something more clever for the assignment of Imperical surnames
+#   -Azure Coast Human society living in the jungles with names that connote swamp or bayou (French New Orleans, "redneck" culture, names to do with flora and fauna)
+# Move probability lists to external .txt files?
